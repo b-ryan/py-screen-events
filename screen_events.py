@@ -9,52 +9,44 @@ if mac:
 else:
     raise NotImplemented()
 
-noop = lambda: null
 
+class ScreenState:
+    def __init__(self, screen_on):
+        self.screen_on = screen_on
 
-class ScreenListenerThread(threading.Thread):
-    def __init__(self, locked_cbk=noop, unlocked_cbk=noop, sleep_time=1):
-        super(ScreenListenerThread, self).__init__()
-        self.daemon = True
-        self._locked_cbk = locked_cbk
-        self._unlocked_cbk = unlocked_cbk
-        self._sleep_time = sleep_time
+    def __eq__(self, other):
+        return self.screen_on == other.screen_on
 
-    def _mac_status(self):
+    def __str__(self):
+        if self.screen_on:
+            return 'Screen on'
+        return 'Screen off'
+
+ON = ScreenState(True)
+OFF = ScreenState(False)
+
+if mac:
+    def screen_state():
         # thanks to http://stackoverflow.com/a/11511419/683436
         d = Quartz.CGSessionCopyCurrentDictionary()
         if d and d.get('CGSSessionScreenIsLocked', 0) == 0 and \
            d.get('kCGSSessionOnConsoleKey', 0) == 1:
-            return 'unlocked'
-        return 'locked'
+            return ON
+        return OFF
 
-    def _run_mac(self):
-        status = self._mac_status()
+    def event_loop(cbk, sleep_time=1, emit_first=True):
+        state = screen_state()
+        if emit_first:
+            cbk(state)
         while True:
-            new_status = self._mac_status()
-            if status != new_status:
-                if new_status == 'unlocked':
-                    self._unlocked_cbk()
-                else:
-                    self._locked_cbk()
-                status = new_status
-            time.sleep(self._sleep_time)
-
-    def run(self):
-        if mac:
-            self._run_mac()
-        else:
-            raise NotImplemented()
-
+            new_state = screen_state()
+            if state != new_state:
+                cbk(new_state)
+                state = new_state
+            time.sleep(sleep_time)
 
 if __name__ == '__main__':
-    def locked():
-        print "locked"
+    def cbk(state):
+        print state
 
-    def unlocked():
-        print "unlocked"
-
-    t = ScreenListenerThread(locked, unlocked)
-    t.start()
-    while True:
-        pass
+    event_loop(cbk)
