@@ -3,46 +3,30 @@ import platform
 import threading
 import time
 
-mac = platform.system() == 'Darwin'
-linux = platform.system() == 'Linux'
-
-if mac:
-    import Quartz
-elif linux:
-    import dbus
-    from dbus import glib
-    from dbus.mainloop.glib import DBusGMainLoop
-    import gobject
-else:
-    raise NotImplemented()
-
 
 class ScreenState:
-    def __init__(self, screen_on):
-        self.screen_on = screen_on
+    ON = 1
+    OFF = 2
 
-    def __eq__(self, other):
-        return self.screen_on == other.screen_on
+if platform.system() == 'Darwin':
+    import Quartz
 
-    def __str__(self):
-        if self.screen_on:
-            return 'Screen on'
-        return 'Screen off'
-
-ON = ScreenState(True)
-OFF = ScreenState(False)
-
-if mac:
     def screen_state():
         # thanks to http://stackoverflow.com/a/11511419/683436
         d = Quartz.CGSessionCopyCurrentDictionary()
         if d and d.get('CGSSessionScreenIsLocked', 0) == 0 and \
            d.get('kCGSSessionOnConsoleKey', 0) == 1:
-            return ON
-        return OFF
-elif linux:
-    DBUS_UNLOCKED = 0
-    DBUS_LOCKED = 1
+            return ScreenState.ON
+        return ScreenState.OFF
+
+elif platform.system() == 'Linux':
+    import dbus
+    from dbus import glib
+    from dbus.mainloop.glib import DBusGMainLoop
+    import gobject
+
+    _DBUS_UNLOCKED = 0
+    _DBUS_LOCKED = 1
 
     gobject.threads_init()
     glib.init_threads()
@@ -55,14 +39,16 @@ elif linux:
                                               '/com/canonical/Unity/Session'),
                               'com.canonical.Unity.Session')
 
-    # y = dbus.Interface(x, dbus.INTROSPECTABLE_IFACE)
-    # print y
-    # print y.Introspect()
-
     def screen_state():
         if _session.IsLocked():
-            return OFF
-        return ON if _screen_saver.GetActive() == DBUS_UNLOCKED else OFF
+            return ScreenState.OFF
+        return ScreenState.ON \
+            if _screen_saver.GetActive() == _DBUS_UNLOCKED \
+            else ScreenState.OFF
+
+else:
+    raise NotImplemented()
+
 
 def event_loop(cbk, sleep_time=1, emit_current=True):
     state = screen_state()
@@ -77,5 +63,10 @@ def event_loop(cbk, sleep_time=1, emit_current=True):
 
 if __name__ == '__main__':
     def cbk(state):
-        print state
+        if state == ScreenState.ON:
+            print 'on'
+        elif state == ScreenState.OFF:
+            print 'off'
+        else:
+            print 'unknown'
     event_loop(cbk)
