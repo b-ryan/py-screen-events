@@ -30,7 +30,6 @@ To get the current state of the screen:
 ```python
 from screen_events import screen_state
 
-
 print screen_state()
 ```
 
