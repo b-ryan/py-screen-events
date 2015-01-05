@@ -1,7 +1,36 @@
 py-screen-events
 ================
 
-A python library to detect when your MAC screen is turned off.
+A python library to detect when your screen goes blank or wakes up.
+
+Has been tested on Ubuntu 14.04 and OS X Yosemite using Python 2.7.6.
+
+Usage
+=====
+
+Have a callback function triggered whenever the screen is locked or turns off:
+
+```python
+import screen_events
+
+
+def callback(screen_state):
+    if screen_state == screen_events.ON:
+        print "the screen was unlocked or it turned back on"
+    elif screen_state == screen_events.OFF:
+        print "the screen was locked or it turned off"
+    else:
+        print "this will never happen"
+
+screen_events.event_loop(callback)
+```
+
+To get the current state of the screen:
+
+```python
+print screen_events.screen_state()
+```
+
 
 Relevant links
 ==============
