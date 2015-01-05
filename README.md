@@ -11,24 +11,27 @@ Usage
 Have a callback function triggered whenever the screen is locked or turns off:
 
 ```python
-import screen_events
+from screen_events import ScreenState, event_loop
 
 
-def callback(screen_state):
-    if screen_state == screen_events.ON:
+def callback(state):
+    if state == ScreenState.ON:
         print "the screen was unlocked or it turned back on"
-    elif screen_state == screen_events.OFF:
+    elif state == ScreenState.OFF:
         print "the screen was locked or it turned off"
     else:
         print "this will never happen"
 
-screen_events.event_loop(callback)
+event_loop(callback)
 ```
 
 To get the current state of the screen:
 
 ```python
-print screen_events.screen_state()
+from screen_events import screen_state
+
+
+print screen_state()
 ```
 
 
