@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from setuptools import setup, find_packages
+from setuptools import setup
 from pip.req import parse_requirements
 import platform
 
@@ -14,6 +14,10 @@ if platform.system() == 'Darwin':
 setup(
     name=NAME,
     version=VERSION,
-    packages=find_packages(),
+    description="Monitor computer screen for lock / awake events",
+    author="Buck Ryan",
+    author_email="buck.ryan@gmail.com",
+    url="https://github.com/b-ryan/py-screen-events",
+    py_modules=["screen_events"],
     install_requires=[str(ir.req) for ir in install_reqs],
 )

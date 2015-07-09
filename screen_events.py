@@ -11,7 +11,10 @@ class ScreenState:
 if platform.system() == 'Darwin':
     import Quartz
 
-    def screen_state():
+    def init():
+        pass
+
+    def screen_state(context):
         # thanks to http://stackoverflow.com/a/11511419/683436
         d = Quartz.CGSessionCopyCurrentDictionary()
         if d and d.get('CGSSessionScreenIsLocked', 0) == 0 and \
@@ -25,37 +28,65 @@ elif platform.system() == 'Linux':
     from dbus.mainloop.glib import DBusGMainLoop
     import gobject
 
-    _DBUS_UNLOCKED = 0
-    _DBUS_LOCKED = 1
+    class DbusEnvironment:
+        def __init__(self):
+            gobject.threads_init()
+            glib.init_threads()
 
-    gobject.threads_init()
-    glib.init_threads()
+            bus = dbus.SessionBus()
 
-    _bus = dbus.SessionBus()
-    _screen_saver = dbus.Interface(_bus.get_object('org.gnome.ScreenSaver',
-                                                   '/org/gnome/ScreenSaver'),
-                                   'org.gnome.ScreenSaver')
-    _session = dbus.Interface(_bus.get_object('com.canonical.Unity',
-                                              '/com/canonical/Unity/Session'),
-                              'com.canonical.Unity.Session')
+            self.screen_saver = dbus.Interface(
+                bus.get_object('org.gnome.ScreenSaver',
+                               '/org/gnome/ScreenSaver'),
+                'org.gnome.ScreenSaver')
 
-    def screen_state():
-        if _session.IsLocked():
+            try:
+                self.session = dbus.Interface(
+                    bus.get_object('com.canonical.Unity',
+                                   '/com/canonical/Unity/Session'),
+                    'com.canonical.Unity.Session')
+
+                self.is_session_locked = self._unity__is_session_locked
+            except Exception:
+                self.session = dbus.Interface(
+                    bus.get_object('org.gnome.SessionManager',
+                                   '/org/gnome/SessionManager'),
+                    'org.gnome.SessionManager')
+                self.is_session_locked = self._gnome__is_session_locked
+
+
+        def _unity__is_session_locked(self):
+            return self.session.IsLocked()
+
+        def _gnome__is_session_locked(self):
+            return not self.session.IsSessionRunning()
+
+        def is_screen_saver_on(self):
+            return self.screen_saver.GetActive()
+
+    def init():
+        return DbusEnvironment()
+
+    def screen_state(environment):
+        if environment.is_session_locked():
             return ScreenState.OFF
-        return ScreenState.ON \
-            if _screen_saver.GetActive() == _DBUS_UNLOCKED \
-            else ScreenState.OFF
+
+        if environment.is_screen_saver_on():
+            return ScreenState.OFF
+
+        return ScreenState.ON
 
 else:
     raise NotImplemented()
 
 
 def event_loop(cbk, sleep_time=1, emit_current=True):
-    state = screen_state()
+    environment = init()
+    state = screen_state(environment)
     if emit_current:
         cbk(state)
     while True:
-        new_state = screen_state()
+        new_state = screen_state(environment)
         if state != new_state:
             cbk(new_state)
             state = new_state
